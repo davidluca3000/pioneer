@@ -655,7 +655,9 @@ void MainMenu::Update(float deltaTime)
 
 	perfInfoDisplay->Update(deltaTime * 1e3, 0.0);
 	if (Pi::showDebugInfo) {
+		Pi::pigui->SetDebugStyle();
 		perfInfoDisplay->Draw();
+		Pi::pigui->SetNormalStyle();
 	}
 
 	Pi::pigui->Render();
@@ -1030,15 +1032,17 @@ void GameLoop::Update(float deltaTime)
 		// TODO: this mechanism still isn't perfect, but it gets us out of newUI
 		if (Pi::luaConsole->IsActive())
 			Pi::luaConsole->Draw();
-		else
+		else {
+			Pi::GetView()->DrawPiGui();
 			PiGui::RunHandler(deltaTime, "game");
-
-		Pi::GetView()->DrawPiGui();
+		}
 	}
 
 	// Render this even when we're dead.
 	if (Pi::showDebugInfo) {
+		Pi::pigui->SetDebugStyle();
 		perfInfoDisplay->Draw();
+		Pi::pigui->SetNormalStyle();
 	}
 
 	Pi::pigui->Render();
@@ -1187,6 +1191,7 @@ void Pi::SetView(View *v)
 	if (currentView) currentView->Detach();
 	currentView = v;
 	if (currentView) currentView->Attach();
+	LuaEvent::Queue("onViewChanged");
 }
 
 void Pi::OnChangeDetailLevel()

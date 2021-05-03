@@ -46,6 +46,13 @@ struct shipstats_t {
 	float shield_mass;
 	float shield_mass_left;
 	float fuel_tank_mass_left;
+
+	// cached equipment information to avoid costly Lua lookups
+	int atmo_shield_cap;
+	int radar_cap;
+	int fuel_scoop_cap;
+	int cargo_bay_life_support_cap;
+	int hull_autorepair_cap;
 };
 
 struct HyperdriveSoundsTable {
@@ -290,6 +297,7 @@ private:
 
 	FlightState m_flightState;
 	bool m_testLanded;
+	bool m_forceWheelUpdate;
 	float m_launchLockTimeout;
 	float m_wheelState;
 	int m_wheelTransition;

@@ -80,8 +80,8 @@ ModelBody::ModelBody(const Json &jsonObj, Space *space) :
 
 	try {
 		m_isStatic = modelBodyObj["is_static"];
-		m_colliding = modelBodyObj["is_colliding"];
 		SetModel(modelBodyObj["model_name"].get<std::string>().c_str());
+		SetColliding(modelBodyObj["is_colliding"]);
 	} catch (Json::type_error &) {
 		throw SavedGameCorruptException();
 	}
@@ -183,6 +183,10 @@ void ModelBody::SetModel(const char *modelName)
 	//create model instance (some modelbodies, like missiles could avoid this)
 	m_model = Pi::FindModel(m_modelName)->MakeInstance();
 	m_idleAnimation = m_model->FindAnimation("idle");
+	// TODO: this isn't great, as animations will be ticked regardless of whether the modelbody
+	// is next to the player or on the other side of the solar system.
+	if (m_idleAnimation)
+		m_model->SetAnimationActive(m_model->FindAnimationIndex(m_idleAnimation), true);
 
 	SetClipRadius(m_model->GetDrawClipRadius());
 

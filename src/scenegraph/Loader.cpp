@@ -8,11 +8,11 @@
 #include "LOD.h"
 #include "Parser.h"
 #include "SceneGraph.h"
-#include "scenegraph/Animation.h"
 #include "StringF.h"
-#include "graphics/Renderer.h"
 #include "graphics/RenderState.h"
+#include "graphics/Renderer.h"
 #include "graphics/TextureBuilder.h"
+#include "scenegraph/Animation.h"
 #include "utils.h"
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
@@ -125,9 +125,7 @@ namespace SceneGraph {
 
 	Model *Loader::LoadModel(const std::string &filename)
 	{
-		PROFILE_SCOPED()
-		Model *m = LoadModel(filename, "models");
-		return m;
+		return LoadModel(filename, "models");
 	}
 
 	Model *Loader::LoadModel(const std::string &shortname, const std::string &basepath)
@@ -303,7 +301,7 @@ namespace SceneGraph {
 		m_model->CreateCollisionMesh();
 
 		// Do an initial animation update to get all the animation transforms correct
-		m_model->UpdateAnimations();
+		m_model->InitAnimations();
 
 		//find usable pattern textures from the model directory
 		if (patternsUsed)

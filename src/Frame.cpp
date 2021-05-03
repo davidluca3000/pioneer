@@ -246,14 +246,12 @@ void Frame::DeleteFrames()
 
 Frame *Frame::GetFrame(FrameId fId)
 {
-	PROFILE_SCOPED()
-
-	if (fId && fId.id() < s_frames.size())
-		return &s_frames[fId];
-	else if (fId)
+#ifndef NDEBUG
+	if (fId && fId.id() >= s_frames.size())
 		Error("In '%s': fId is valid but out of range (%zu)...\n", __func__, fId.id());
+#endif
 
-	return nullptr;
+	return fId.valid() ? &s_frames[fId] : nullptr;
 }
 
 FrameId Frame::CreateCameraFrame(FrameId parent)
@@ -479,6 +477,7 @@ void Frame::ClearMovement()
 
 void Frame::UpdateOrbitRails(double time, double timestep)
 {
+	PROFILE_SCOPED()
 	std::for_each(begin(s_frames), end(s_frames), [&time, &timestep](Frame &frame) {
 		frame.m_oldPos = frame.m_pos;
 		frame.m_oldAngDisplacement = frame.m_angSpeed * timestep;

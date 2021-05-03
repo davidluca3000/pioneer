@@ -83,6 +83,14 @@
     "description": "Headline starts with this pre-headline",
     "message": "RUMEUR"
   },
+  "RUMOUR_1_BODYTEXT": {
+    "description": "",
+    "message": "Quelqu'un dans la marine fédérale m'a raconté qu'un jour une de leurs corvettes a sauté par accident vers un système éloigné de Haber, distant d'environ de 50 ly de Sol, appelé Rondel; causant ainsi quasiment un conflit ouvert. Peu de gens semble connaitre l'incident en dehors de la marine, mais quelques-uns disent que l'administration de Rondel a été depuis lors plus agressive envers les visiteurs et les pilotes de marchandises ont commencé à éviter le système."
+  },
+  "RUMOUR_1_HEADLINE": {
+    "description": "",
+    "message": "L'incident de Rondel"
+  },
   "TALE_1_BODYTEXT": {
     "description": "",
     "message": "Ne ratez pas la magnifique éclipse sur New Hope lorsque Hades bloque la lumière d'Epsilon Eridani."

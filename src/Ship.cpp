@@ -65,6 +65,7 @@ Ship::Ship(const ShipType::Id &shipId) :
 	m_launchLockTimeout = 0;
 	m_wheelTransition = 0;
 	m_wheelState = 0;
+	m_forceWheelUpdate = false;
 	m_dockedWith = nullptr;
 	m_dockedWithPort = 0;
 	SetShipId(shipId);
@@ -129,6 +130,7 @@ Ship::Ship(const Json &jsonObj, Space *space) :
 		// needs fixups
 		m_wheelTransition = shipObj["wheel_transition"];
 		m_wheelState = shipObj["wheel_state"];
+		m_forceWheelUpdate = true;
 		m_launchLockTimeout = shipObj["launch_lock_timeout"];
 		m_testLanded = shipObj["test_landed"];
 		m_flightState = shipObj["flight_state"];
@@ -229,6 +231,7 @@ void Ship::Init()
 	m_hyperspaceCloud = 0;
 
 	m_landingGearAnimation = GetModel()->FindAnimation("gear_down");
+	m_forceWheelUpdate = true;
 
 	GetFixedGuns()->InitGuns(GetModel());
 
@@ -359,10 +362,7 @@ float Ship::GetPercentShields() const
 
 float Ship::GetAtmosphericPressureLimit() const
 {
-	int atmo_shield_cap = 0;
-	const_cast<Ship *>(this)->Properties().Get("atmo_shield_cap", atmo_shield_cap);
-	atmo_shield_cap = std::max(atmo_shield_cap, 1); //default to base limit if no shield installed
-	return m_type->atmosphericPressureLimit * atmo_shield_cap;
+	return m_type->atmosphericPressureLimit * std::max(m_stats.atmo_shield_cap, 1); //default to base limit if no shield installed
 }
 
 void Ship::SetPercentHull(float p)
@@ -586,6 +586,7 @@ void Ship::Explode()
 
 bool Ship::DoDamage(float kgDamage)
 {
+	PROFILE_SCOPED()
 	if (m_invulnerable) {
 		return true;
 	}
@@ -646,7 +647,7 @@ void Ship::UpdateEquipStats()
 	p.Set("staticMass", m_stats.static_mass);
 
 	int shield_cap = 0;
-	Properties().Get("shield_cap", shield_cap);
+	p.Get("shield_cap", shield_cap);
 	m_stats.shield_mass = TONS_HULL_PER_SHIELD * float(shield_cap);
 	p.Set("shieldMass", m_stats.shield_mass);
 
@@ -654,13 +655,19 @@ void Ship::UpdateEquipStats()
 	UpdateGunsStats();
 
 	unsigned int thruster_power_cap = 0;
-	Properties().Get("thruster_power_cap", thruster_power_cap);
+	p.Get("thruster_power_cap", thruster_power_cap);
 	const double power_mul = m_type->thrusterUpgrades[Clamp(thruster_power_cap, 0U, 3U)];
 	GetPropulsion()->SetThrustPowerMult(power_mul, m_type->linThrust, m_type->angThrust);
 
 	m_stats.hyperspace_range = m_stats.hyperspace_range_max = 0;
 	p.Set("hyperspaceRange", m_stats.hyperspace_range);
 	p.Set("maxHyperspaceRange", m_stats.hyperspace_range_max);
+
+	p.Get<int>("atmo_shield_cap", m_stats.atmo_shield_cap);
+	p.Get<int>("radar_cap", m_stats.radar_cap);
+	p.Get<int>("fuel_scoop_cap", m_stats.fuel_scoop_cap);
+	p.Get<int>("cargo_life_support_cap", m_stats.cargo_bay_life_support_cap);
+	p.Get<int>("hull_autorepair_cap", m_stats.hull_autorepair_cap);
 }
 
 void Ship::UpdateLuaStats()
@@ -918,6 +925,7 @@ void Ship::Blastoff()
 
 void Ship::TestLanded()
 {
+	PROFILE_SCOPED()
 	m_testLanded = false;
 	if (m_launchLockTimeout > 0.0f) return;
 	if (m_wheelState < 1.0f) return;
@@ -955,6 +963,7 @@ void Ship::SetLandedOn(Planet *p, float latitude, float longitude)
 {
 	m_wheelTransition = 0;
 	m_wheelState = 1.0f;
+	m_forceWheelUpdate = true;
 	Frame *f_non_rot = Frame::GetFrame(p->GetFrame());
 	SetFrame(f_non_rot->GetRotFrame());
 
@@ -979,6 +988,7 @@ void Ship::SetFrame(FrameId fId)
 
 void Ship::TimeStepUpdate(const float timeStep)
 {
+	PROFILE_SCOPED()
 	// If docked, station is responsible for updating position/orient of ship
 	// but we call this crap anyway and hope it doesn't do anything bad
 
@@ -989,8 +999,14 @@ void Ship::TimeStepUpdate(const float timeStep)
 	//apply extra atmospheric flight forces
 	AddTorque(CalcAtmoTorque());
 
-	if (m_landingGearAnimation)
+	if (m_landingGearAnimation) {
 		m_landingGearAnimation->SetProgress(m_wheelState);
+		if (m_forceWheelUpdate) {
+			m_landingGearAnimation->Interpolate();
+			m_forceWheelUpdate = false;
+		}
+	}
+
 	m_dragCoeff = DynamicBody::DEFAULT_DRAG_COEFF * (1.0 + 0.25 * m_wheelState);
 	DynamicBody::TimeStepUpdate(timeStep);
 
@@ -1060,9 +1076,7 @@ double Ship::GetHullTemperature() const
 	//return dragGs / 25.0;
 	// TODO: fix this to properly account for heating due to air friction instead of G-force.
 	double dragGs = GetAtmosForce().Length() / (GetMass() * 9.81);
-	int atmo_shield_cap = 0;
-	const_cast<Ship *>(this)->Properties().Get(R"(atmo_shield_cap)", atmo_shield_cap);
-	return dragGs / (15.0 * (1.0 + atmo_shield_cap + (2.0 * (1.0 - m_wheelState))));
+	return dragGs / (15.0 * (1.0 + m_stats.atmo_shield_cap + (2.0 * (1.0 - m_wheelState))));
 }
 
 void Ship::SetAlertState(AlertState as)
@@ -1074,9 +1088,7 @@ void Ship::SetAlertState(AlertState as)
 void Ship::UpdateAlertState()
 {
 	// no alerts if no radar
-	int radar_cap = 0;
-	Properties().Get("radar_cap", radar_cap);
-	if (radar_cap <= 0) {
+	if (m_stats.radar_cap <= 0) {
 		// clear existing alert state if there was one
 		if (GetAlertState() != ALERT_NONE) {
 			SetAlertState(ALERT_NONE);
@@ -1210,6 +1222,7 @@ void Ship::UpdateFuel(const float timeStep)
 
 void Ship::StaticUpdate(const float timeStep)
 {
+	PROFILE_SCOPED()
 	// do player sounds before dead check, so they also turn off
 	if (IsType(ObjectType::PLAYER)) DoThrusterSounds();
 
@@ -1231,9 +1244,7 @@ void Ship::StaticUpdate(const float timeStep)
 			double pressure, density;
 			p->GetAtmosphericState(dist, &pressure, &density);
 
-			int atmo_shield_cap = 0;
-			const_cast<Ship *>(this)->Properties().Get("atmo_shield_cap", atmo_shield_cap);
-			atmo_shield_cap = std::max(atmo_shield_cap, 1); // needs to have some shielding by default
+			int atmo_shield_cap = std::max(m_stats.atmo_shield_cap, 1); // needs to have some shielding by default
 			if (pressure > (m_type->atmosphericPressureLimit * atmo_shield_cap)) {
 				float damage = float(pressure - m_type->atmosphericPressureLimit);
 				DoDamage(damage);
@@ -1244,9 +1255,9 @@ void Ship::StaticUpdate(const float timeStep)
 	UpdateAlertState();
 
 	/* FUEL SCOOPING!!!!!!!!! */
-	int capacity = 0;
-	Properties().Get("fuel_scoop_cap", capacity);
-	if (m_flightState == FLYING && capacity > 0) {
+	if (m_flightState == FLYING && m_stats.fuel_scoop_cap > 0) {
+		// TODO: this should probably be in Lua instead of in C++
+		// Needs a reliable way to schedule callbacks at ship creation
 		Frame *frame = Frame::GetFrame(GetFrame());
 		Body *astro = frame->GetBody();
 		if (astro && astro->IsType(ObjectType::PLANET)) {
@@ -1261,7 +1272,7 @@ void Ship::StaticUpdate(const float timeStep)
 				const vector3d pdir = -GetOrient().VectorZ();
 				const double dot = vdir.Dot(pdir);
 				if ((m_stats.free_capacity) && (dot > 0.90) && (speed > 1000.0) && (density > 0.5)) {
-					const double rate = speed * density * 0.00000333 * double(capacity);
+					const double rate = speed * density * 0.00000333 * double(m_stats.fuel_scoop_cap);
 					if (Pi::rng.Double() < rate) {
 						lua_State *l = Lua::manager->GetLuaState();
 						pi_lua_import(l, "Equipment");
@@ -1280,9 +1291,8 @@ void Ship::StaticUpdate(const float timeStep)
 	}
 
 	// Cargo bay life support
-	capacity = 0;
-	Properties().Get("cargo_life_support_cap", capacity);
-	if (!capacity) {
+	// TODO: this should be run in Lua
+	if (!m_stats.cargo_bay_life_support_cap) {
 		// Hull is pressure-sealed, it just doesn't provide
 		// temperature regulation and breathable atmosphere
 
@@ -1362,15 +1372,18 @@ void Ship::StaticUpdate(const float timeStep)
 	if (m_wheelTransition) {
 		m_wheelState += m_wheelTransition * 0.3f * timeStep;
 		m_wheelState = Clamp(m_wheelState, 0.0f, 1.0f);
-		if (is_equal_exact(m_wheelState, 0.0f) || is_equal_exact(m_wheelState, 1.0f))
+		if (is_equal_exact(m_wheelState, 0.0f) || is_equal_exact(m_wheelState, 1.0f)) {
 			m_wheelTransition = 0;
+			// TODO: this really needs to be driven by the animation; work around it by forcing an update for the last frame of the animation
+			m_forceWheelUpdate = true;
+			if (m_landingGearAnimation)
+				GetModel()->SetAnimationActive(GetModel()->FindAnimationIndex(m_landingGearAnimation), false);
+		}
 	}
 
 	if (m_testLanded) TestLanded();
 
-	capacity = 0;
-	Properties().Get("hull_autorepair_cap", capacity);
-	if (capacity) {
+	if (m_stats.hull_autorepair_cap && m_stats.hull_mass_left < float(m_type->hullMass)) {
 		m_stats.hull_mass_left = std::min(m_stats.hull_mass_left + 0.1f * timeStep, float(m_type->hullMass));
 		Properties().Set("hullMassLeft", m_stats.hull_mass_left);
 		Properties().Set("hullPercent", 100.0f * (m_stats.hull_mass_left / float(m_type->hullMass)));
@@ -1435,6 +1448,7 @@ void Ship::SetDockedWith(SpaceStation *s, int port)
 		m_dockedWithPort = port;
 		m_wheelTransition = 0;
 		m_wheelState = 1.0f;
+		m_forceWheelUpdate = true;
 		// hand position/state responsibility over to station
 		m_dockedWith->SetDocked(this, port);
 		onDock.emit();
@@ -1458,6 +1472,8 @@ bool Ship::SetWheelState(bool down)
 	int newWheelTransition = (down ? 1 : -1);
 	if (newWheelTransition == m_wheelTransition) return false;
 	m_wheelTransition = newWheelTransition;
+	if (m_landingGearAnimation)
+		GetModel()->SetAnimationActive(GetModel()->FindAnimationIndex(m_landingGearAnimation), true);
 	return true;
 }
 

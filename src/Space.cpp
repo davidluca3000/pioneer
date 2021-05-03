@@ -155,6 +155,7 @@ static void RelocateStarportIfNecessary(SystemBody *sbody, Planet *planet, vecto
 
 void Space::BodyNearFinder::Prepare()
 {
+	PROFILE_SCOPED()
 	m_bodyDist.clear();
 
 	for (Body *b : m_space->GetBodies())
@@ -349,6 +350,10 @@ Body *Space::GetBodyByIndex(Uint32 idx) const
 {
 	assert(m_bodyIndexValid);
 	assert(m_bodyIndex.size() > idx);
+	if (idx == SDL_MAX_UINT32 || m_bodyIndex.size() <= idx) {
+		Output("GetBodyByIndex passed bad index %u", idx);
+		return nullptr;
+	}
 	return m_bodyIndex[idx];
 }
 
@@ -364,8 +369,9 @@ Uint32 Space::GetIndexForBody(const Body *body) const
 	assert(m_bodyIndexValid);
 	for (Uint32 i = 0; i < m_bodyIndex.size(); i++)
 		if (m_bodyIndex[i] == body) return i;
-	assert(0);
-	return Uint32(-1);
+	assert(false);
+	Output("GetIndexForBody passed unknown body");
+	return SDL_MAX_UINT32;
 }
 
 Uint32 Space::GetIndexForSystemBody(const SystemBody *sbody) const
@@ -374,7 +380,7 @@ Uint32 Space::GetIndexForSystemBody(const SystemBody *sbody) const
 	for (Uint32 i = 0; i < m_sbodyIndex.size(); i++)
 		if (m_sbodyIndex[i] == sbody) return i;
 	assert(0);
-	return Uint32(-1);
+	return SDL_MAX_UINT32;
 }
 
 void Space::AddSystemBodyToIndex(SystemBody *sbody)
@@ -953,6 +959,7 @@ static void hitCallback(CollisionContact *c)
 // temporary one-point version
 static void CollideWithTerrain(Body *body, float timeStep)
 {
+	PROFILE_SCOPED()
 	if (!body->IsType(ObjectType::DYNAMICBODY))
 		return;
 	DynamicBody *dynBody = static_cast<DynamicBody *>(body);
@@ -1016,6 +1023,7 @@ void Space::TimeStep(float step)
 
 void Space::UpdateBodies()
 {
+	PROFILE_SCOPED()
 #ifndef NDEBUG
 	m_processingFinalizationQueue = true;
 #endif

@@ -582,6 +582,12 @@
     <ClCompile Include="..\..\src\TransferPlanner.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\contrib\imgui\imgui_demo.cpp">
+      <Filter>src\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\ship\PrecalcPath.cpp">
+      <Filter>src\ship</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\src\Aabb.h">
@@ -1138,6 +1144,9 @@
     </ClInclude>
     <ClInclude Include="..\..\src\TransferPlanner.h">
       <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\ship\PrecalcPath.h">
+      <Filter>src\ship</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

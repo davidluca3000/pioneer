@@ -83,6 +83,14 @@
     "description": "Headline starts with this pre-headline",
     "message": "DICERIA"
   },
+  "RUMOUR_1_BODYTEXT": {
+    "description": "",
+    "message": "Un tizio della Marina Federale mi ha raccontato che tempo fa, una delle loro corvette saltò accidentalmente verso un avamposto Haber a circa 50AL dal Sistema Solare; quasi causando un conflitto. Sembra che non molte persone sappiano dell'incidente, al di fuori della marina, ma alcuni dicono che da allora l'amministrazione Rondel è diventata più aggressiva verso i visitatori ed i piloti di fregate hanno iniziato ad evitare il sistema."
+  },
+  "RUMOUR_1_HEADLINE": {
+    "description": "",
+    "message": "L'incidente Rondel"
+  },
   "TALE_1_BODYTEXT": {
     "description": "",
     "message": "Non perderti la bellissima eclissi a New Hope, quando Hades ostruisce la luce di Epsilon Eridani."
